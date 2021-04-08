@@ -15,6 +15,7 @@ chrome.runtime.sendMessage({
 })
 
 const { parseDomain, ParseResultType } = require('parse-domain')
+import {ElementPickerEvents} from './elementPickerEvents'
 
 // Start looking for things to unhide before at most this long after
 // the backend script is up and connected (eg backgroundReady = true),
@@ -584,6 +585,35 @@ const scheduleQueuePump = (hide1pContent: boolean, generichide: boolean) => {
 
 const vettedSearchEngines = ['duckduckgo', 'qwant', 'bing', 'startpage', 'google', 'yandex', 'ecosia']
 
+let pickerFrame: HTMLIFrameElement | null;
+const picker = new ElementPickerEvents(
+  // On element hover
+  (selected: Element) => {
+    const rect = selected.getBoundingClientRect()
+    const coords = {
+      x: rect.left,
+      y: rect.top,
+      width: rect.right - rect.left,
+      height: rect.bottom  - rect.top
+    }
+
+    // Chromium supports sending messages from content script to content script,
+    // so this will show up in the web accessible listener.
+    chrome.runtime.sendMessage({ type: 'highlightElement', coords: coords })
+  },
+
+  // On element click
+  async (_: EventTarget) => {
+  },
+
+  // On picker deactivated
+  () => {
+    if (pickerFrame !== null) {
+      document.documentElement.removeChild(pickerFrame!)
+    }
+  }
+);
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   const action = typeof msg === 'string' ? msg : msg.type
   switch (action) {
@@ -621,6 +651,44 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
       scheduleQueuePump(false, false)
       break
+    }
+    case 'launchElementPicker': {
+      pickerFrame = document.createElement('iframe')
+      // We ensure src is a web accessible resource since the URI is chrome://
+      // This ensures a malicious page cannot modify the iframe contents.
+      pickerFrame.src = chrome.runtime.getURL('elementPicker.html')
+      const pickerCSSStyle: string = [
+        'background: transparent',
+        'border: 0',
+        'border-radius: 0',
+        'box-shadow: none',
+        'display: block',
+        'height: 100%',
+        'left: 0',
+        'margin: 0',
+        'max-height: none',
+        'max-width: none',
+        'opacity: 1',
+        'outline: 0',
+        'padding: 0',
+        'pointer-events: none', // we need the hover events for elements under the iframe
+        'position: fixed',
+        'top: 0',
+        'visibility: visible',
+        'width: 100%',
+        'z-index: 2147483647',
+        ''
+      ].join(' !important;');
+      // TODO(keur): To harden this we can use chrome.tabs.insertCSS(). Not a
+      // big priority since the page can always remove the iframe if it wants.
+      pickerFrame.style.cssText = pickerCSSStyle
+
+      // We don't append to the body because we are setting the frame's
+      // width and height to be 100%. Prevents the picker from only being
+      // able to hover the iframe.
+      document.documentElement.appendChild(pickerFrame)
+      picker.activate()
+      break;
     }
   }
 })

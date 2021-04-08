@@ -1,0 +1,125 @@
+<head>
+  <meta charset="utf-8">
+  <title>Babble Decryption</title>
+  <style>
+    body {
+      background: transparent !important;
+      color: black !important;
+      font: 14px sans-serif !important;
+      height: 100% !important;
+      margin: 0 !important;
+      overflow: hidden !important;
+      width: 100% !important;
+    }
+
+    body :focus {
+      outline: none !important;
+    }
+
+    #decrypt-box {
+      height: 8em;
+      padding: 5px;
+      margin-bottom: 5px;
+      background-color: #fff;
+      border-radius: .1em;
+      overflow-y: auto;
+      overflow-wrap: break-word;
+    }
+
+    #copy-box {
+      display: none; /* Hidden text area for copying */
+    }
+
+    section > div:first-child + div {
+      direction: ltr !important;
+      margin: 2px 0 !important;
+      text-align: right !important;
+    }
+
+    section > div > small {
+      float: right;
+    }
+
+    aside {
+      background-color: #eee !important;
+      border: 1px solid #aaa !important;
+      border-radius: .1em;
+      bottom: 4px !important;
+      box-sizing: border-box !important;
+      min-width: 24em !important;
+      padding: 4px !important;
+      position: fixed !important;
+      right: 4px !important;
+      visibility: hidden !important;
+      width: calc(40% - 4px) !important;
+    }
+
+    .show {
+      visibility: visible !important;
+    }
+
+    button {
+      float: left;
+      background-color: #ccc !important;
+      cursor: pointer !important;
+      padding: 4px 6px !important;
+      margin: 0 0 0 2px !important;
+    }
+
+    button:first-of-type {
+      margin-left: 0 !important;
+    }
+
+    .show {
+      visibility: visible !important;
+    }
+
+    svg {
+      cursor: crosshair;
+      box-sizing: border-box;
+      height: 100%;
+      width: 100%;
+      top: 0;
+      left: 0;
+      position: absolute;
+    }
+
+    #darken {
+      fill: rgba(0,0,0,0.5);
+    }
+
+    #target {
+      stroke: #F00;
+      stroke-width: 0.5px;
+      fill: rgba(255,63,63, 0.25);
+    }
+
+  </style>
+</head>
+
+<body>
+  <svg id="highlighter">
+    <defs>
+      <mask id="highlight">
+        <rect x="0" y="0" width="100%" height="100%" fill="white" />
+        <rect class="masked" />
+      </mask>
+    </defs>
+      <rect id="darken" x="0" y="0" width="100%" height="100%" mask="url(#highlight)"/>
+      <rect id="target" class="masked" />
+  </svg>
+  <aside>
+    <section>
+      <div id="decrypt-box" style="height:8em;">
+      </div>
+      <textarea id="copy-box" readonly spellcheck="false"></textarea>
+      <div>
+        <button id="copy" class="btn btn-sm" disabled type="button">Copy</button>
+        <button id="setKey" class="btn btn-sm" disabled type="button">Use this key</button>
+        <button id="quit" class="btn btn-sm" disabled type="button">Quit</button>
+        <small>Decryption Key: <span id="key-name"></span></small>
+      </div>
+    </section>
+  </aside>
+  <script src="elementPicker.js"></script>
+</body>
