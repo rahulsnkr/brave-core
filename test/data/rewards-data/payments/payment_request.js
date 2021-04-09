@@ -74,3 +74,10 @@ function paymentRequestWithoutSkuTokens() {
     return request_without_sku_tokens.canMakePayment();
   });
 }
+
+function show() {
+  run(() => {
+    return basic_request.show();
+  });
+}
+

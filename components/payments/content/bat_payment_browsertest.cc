@@ -43,7 +43,7 @@ class BatPaymentTest : public PaymentRequestPlatformBrowserTestBase {
     base::PathService::Get(brave::DIR_TEST_DATA, &test_data_dir);
     test_data_dir = test_data_dir.Append("rewards-data");
     test_data_dir = test_data_dir.Append("payments");
-	https_server()->ServeFilesFromDirectory(test_data_dir);
+    https_server()->ServeFilesFromDirectory(test_data_dir);
 
     host_resolver()->AddRule("*", "127.0.0.1");
     https_server()->SetSSLConfig(net::EmbeddedTestServer::CERT_OK);
@@ -58,26 +58,22 @@ class BatPaymentTest : public PaymentRequestPlatformBrowserTestBase {
     // Response mock
     base::ScopedAllowBlockingForTesting allow_blocking;
     response_->LoadMocks();
-    rewards_service_->ForTestingSetTestResponseCallback(
-        base::BindRepeating(
-            &BatPaymentTest::GetTestResponse,
-            base::Unretained(this)));
+    rewards_service_->ForTestingSetTestResponseCallback(base::BindRepeating(
+        &BatPaymentTest::GetTestResponse, base::Unretained(this)));
     rewards_service_->SetLedgerEnvForTesting();
 
     rewards_browsertest_util::SetOnboardingBypassed(browser());
 
     // For PaymentRequest
     test_controller()->SetUpOnMainThread();
-	PlatformBrowserTest::SetUpOnMainThread();
+    PlatformBrowserTest::SetUpOnMainThread();
   }
 
-  void TearDown() override {
-    InProcessBrowserTest::TearDown();
-  }
+  void TearDown() override { InProcessBrowserTest::TearDown(); }
 
   void CanMakePaymentWillPass(std::list<TestEvent> event_sequence,
-  	                          std::string expected_result,
-  	                          std::string function) {
+                              std::string expected_result,
+                              std::string function) {
     ResetEventWaiterForEventSequence(event_sequence);
     ASSERT_TRUE(content::ExecuteScript(GetActiveWebContents(), function));
     WaitForObservedEvent();
@@ -85,112 +81,116 @@ class BatPaymentTest : public PaymentRequestPlatformBrowserTestBase {
   }
 
   void CanMakePaymentWillFail(std::string expected_result,
-  	                          std::string function) {
+                              std::string function) {
     ASSERT_TRUE(content::ExecuteScript(GetActiveWebContents(), function));
     ExpectBodyContains(expected_result);
   }
 
-  void GetTestResponse(
-      const std::string& url,
-      int32_t method,
-      int* response_status_code,
-      std::string* response,
-      base::flat_map<std::string, std::string>* headers) {
-    response_->Get(
-        url,
-        method,
-        response_status_code,
-        response);
+  void GetTestResponse(const std::string& url,
+                       int32_t method,
+                       int* response_status_code,
+                       std::string* response,
+                       base::flat_map<std::string, std::string>* headers) {
+    response_->Get(url, method, response_status_code, response);
   }
 
   void LoadVerifiedPublisher(std::string publisher) {
     rewards_browsertest_util::StartProcess(rewards_service());
-    context_helper()->LoadURL(rewards_browsertest_util::GetUrl(https_server(), publisher));
-  
+    rewards_service()->EnableRewards();
+    base::RunLoop().RunUntilIdle();
+
+    context_helper()->LoadURL(
+        rewards_browsertest_util::GetUrl(https_server(), publisher));
     content::WebContents* popup_contents = context_helper()->OpenRewardsPopup();
     ASSERT_TRUE(popup_contents);
 
     // Verify if the publisher is verified
     rewards_browsertest_util::WaitForElementToContain(
-        popup_contents,
-        "#root",
-        publisher);
+        popup_contents, "[id='wallet-panel']", "Brave Verified Creator");
   }
 
   void LoadUnverifiedPublisher(std::string publisher) {
     rewards_browsertest_util::StartProcess(rewards_service());
-    context_helper()->LoadURL(rewards_browsertest_util::GetUrl(https_server(), publisher));
-  
+    context_helper()->LoadURL(
+        rewards_browsertest_util::GetUrl(https_server(), publisher));
+    rewards_service()->EnableRewards();
+    base::RunLoop().RunUntilIdle();
+
     content::WebContents* popup_contents = context_helper()->OpenRewardsPopup();
     ASSERT_TRUE(popup_contents);
 
     // Verify if the publisher is unverified
-    rewards_browsertest_util::WaitForElementThenClick(
-        popup_contents,
-        "[data-test-id='unverified-check-button']");
+    rewards_browsertest_util::WaitForElementToContain(
+        popup_contents, "[id='wallet-panel']", "Not yet verified");
   }
 
-
-  brave_rewards::RewardsServiceImpl* rewards_service() { return rewards_service_; }
-  RewardsBrowserTestContextHelper* context_helper() { return context_helper_.get(); }
+  brave_rewards::RewardsServiceImpl* rewards_service() {
+    return rewards_service_;
+  }
+  RewardsBrowserTestContextHelper* context_helper() {
+    return context_helper_.get();
+  }
 
  private:
-   brave_rewards::RewardsServiceImpl* rewards_service_;
-   std::unique_ptr<RewardsBrowserTestContextHelper> context_helper_;
-   std::unique_ptr<RewardsBrowserTestResponse> response_;
+  brave_rewards::RewardsServiceImpl* rewards_service_;
+  std::unique_ptr<RewardsBrowserTestContextHelper> context_helper_;
+  std::unique_ptr<RewardsBrowserTestResponse> response_;
 };
 
 IN_PROC_BROWSER_TEST_F(BatPaymentTest, BasicTest) {
   std::string publisher = "duckduckgo.com";
   LoadVerifiedPublisher(publisher);
-  rewards_browsertest_util::NavigateToPublisherPage(
+  ui_test_utils::NavigateToURLWithDisposition(
       browser(),
-      https_server(),
-      publisher,
-      "/payment_request.html");
+      rewards_browsertest_util::GetUrl(https_server(), publisher,
+                                       "/payment_request.html"),
+      WindowOpenDisposition::CURRENT_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
 
-  CanMakePaymentWillPass({TestEvent::kCanMakePaymentCalled, TestEvent::kCanMakePaymentReturned},
-  	                     "true",
-  	                     "batPaymentMethodSupported()");
+  CanMakePaymentWillPass(
+      {TestEvent::kCanMakePaymentCalled, TestEvent::kCanMakePaymentReturned},
+      "true", "batPaymentMethodSupported()");
 }
- 
+
 IN_PROC_BROWSER_TEST_F(BatPaymentTest, UnverifiedPublisher) {
   std::string publisher = "brave.com";
   LoadUnverifiedPublisher(publisher);
-
-  rewards_browsertest_util::NavigateToPublisherPage(
+  ui_test_utils::NavigateToURLWithDisposition(
       browser(),
-      https_server(),
-      "brave.com",
-      "/payment_request.html");
-  CanMakePaymentWillFail("InvalidStateError: Failed to execute 'canMakePayment'",
-  	                     "batPaymentMethodSupported()");
+      rewards_browsertest_util::GetUrl(https_server(), publisher,
+                                       "/payment_request.html"),
+      WindowOpenDisposition::CURRENT_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+
+  CanMakePaymentWillFail(
+      "InvalidStateError: Failed to execute 'canMakePayment'",
+      "batPaymentMethodSupported()");
 }
 
 IN_PROC_BROWSER_TEST_F(BatPaymentTest, NoDisplayItems) {
   std::string publisher = "duckduckgo.com";
   LoadVerifiedPublisher(publisher);
-  rewards_browsertest_util::NavigateToPublisherPage(
+  ui_test_utils::NavigateToURLWithDisposition(
       browser(),
-      https_server(),
-      "duckduckgo.com",
-      "/payment_request.html");
+      rewards_browsertest_util::GetUrl(https_server(), publisher,
+                                       "/payment_request.html"),
+      WindowOpenDisposition::CURRENT_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
 
-  CanMakePaymentWillFail("InvalidStateError: Failed to execute 'canMakePayment'",
-  	                     "paymentRequestWithoutDisplayItems()");
+  CanMakePaymentWillFail(
+      "InvalidStateError: Failed to execute 'canMakePayment'",
+      "paymentRequestWithoutDisplayItems()");
 }
 
 IN_PROC_BROWSER_TEST_F(BatPaymentTest, MissingSKUTokens) {
   std::string publisher = "duckduckgo.com";
   LoadVerifiedPublisher(publisher);
   rewards_browsertest_util::NavigateToPublisherPage(
-      browser(),
-      https_server(),
-      "duckduckgo.com",
-      "/payment_request.html");
-  
-  CanMakePaymentWillFail("InvalidStateError: Failed to execute 'canMakePayment'",
-  	                     "paymentRequestWithoutSkuTokens()");
+      browser(), https_server(), "duckduckgo.com", "/payment_request.html");
+
+  CanMakePaymentWillFail(
+      "InvalidStateError: Failed to execute 'canMakePayment'",
+      "paymentRequestWithoutSkuTokens()");
 }
 
 }  // namespace payments

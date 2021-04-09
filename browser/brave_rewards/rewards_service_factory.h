@@ -14,7 +14,7 @@
 class Profile;
 
 namespace content {
-  class BrowserContext;
+class BrowserContext;
 }
 
 namespace brave_rewards {
